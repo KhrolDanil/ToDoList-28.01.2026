@@ -3,8 +3,16 @@
 let habbits = [];
 const HABBIT_KEY = "HABBIT_KEY";
 let globalActiveHabbitId;
-
+const habits = JSON.parse(localStorage.getItem("habits")) || [];
 //page
+
+document.body.addEventListener("click", (e) => {
+  if (e.target.matches(".open-modal-btn")) {
+    document.querySelector(".modal").classList.add("active");
+  } else if (e.target.matches(".close-modal-btn")) {
+    document.querySelector(".modal").classList.remove("active");
+  }
+});
 
 const page = {
   menu: document.querySelector(".menu__list"),
@@ -108,36 +116,55 @@ function rerenderMenu(activeHabbit) {
   }
 }
 
-function rerenderHead(activeHabbit) {
-  page.header.h1.innerText = activeHabbit.name;
-  const progress =
-    activeHabbit.days.length / activeHabbit.target > 1
-      ? 100
-      : (activeHabbit.days.length / activeHabbit.target) * 100;
-  page.header.progressPercent.innerText = progress.toFixed(0) + "%";
-  page.header.progressCoverBar.setAttribute("style", `width: ${progress}%`);
-}
-
+// Рендерим дни привычки
 function rerendercontent(activeHabbit) {
+  // очищаем контейнер
   page.content.daysContainer.innerHTML = "";
-  for (const index in activeHabbit.days) {
+
+  // создаём все дни заново
+  activeHabbit.days.forEach((day, index) => {
     const element = document.createElement("div");
     element.classList.add("habbit");
-    element.innerHTML = `<div class="habbit__day">День ${Number(index) + 1}</div>
-              <div class="habbit__comment">${
-                activeHabbit.days[index].comment
-              }</div>
-              <button class="habbit__delete" onclick="deleteDay(${index})">
-                <img src="./images/delete.svg" alt="Удалить день ${
-                  index + 1
-                }" />
-              </button>`;
-    page.content.daysContainer.appendChild(element);
-  }
-  page.content.nextDay.innerHTML = `День ${activeHabbit.days.length + 1}`;
+    element.dataset.index = index; // сохраняем актуальный индекс дня
 
-  //  deleteDay();
+    element.innerHTML = `
+      <div class="habbit__day">День ${index + 1}</div>
+      <div class="habbit__comment">${day.comment}</div>
+      <button class="habbit__delete">
+        <img src="./images/delete.svg" alt="Удалить день ${index + 1}" />
+      </button>
+    `;
+
+    page.content.daysContainer.appendChild(element);
+  });
+
+  // обновляем номер следующего дня
+  page.content.nextDay.innerHTML = `День ${activeHabbit.days.length + 1}`;
 }
+
+// Делегирование клика по кнопкам удаления
+// НАВЕШИВАЕМ ОДИН РАЗ при инициализации
+page.content.daysContainer.addEventListener("click", (e) => {
+  const deleteBtn = e.target.closest(".habbit__delete");
+  if (!deleteBtn) return; // клик не по кнопке
+
+  // получаем актуальный индекс дня
+  const dayIndex = Number(deleteBtn.parentElement.dataset.index);
+
+  // удаляем день и сохраняем
+  const activeHabbit = habbits.find(h => h.id === globalActiveHabbitId);
+  if (!activeHabbit) return;
+
+  activeHabbit.days.splice(dayIndex, 1);
+  saveData();
+
+  // ререндерим с новыми индексами
+  rerender(globalActiveHabbitId);
+});
+
+
+
+//  deleteDay();
 
 function rerender(activeHabbitId) {
   globalActiveHabbitId = activeHabbitId;
@@ -276,10 +303,18 @@ function addHabbit(event) {
 
 // init //
 
+page.content.daysContainer.addEventListener("click", (e) => {
+  const deleteBtn = e.target.closest(".habbit__delete");
+  if (!deleteBtn) return;
+
+  const dayIndex = Number(deleteBtn.parentElement.dataset.index);
+  deleteDay(dayIndex);
+});
+
 (() => {
   loadData();
   const hashId = Number(document.location.hash.replace("#", ""));
-  const urlHabbit = habbits.find((habbit => habbit.id == hashId));
+  const urlHabbit = habbits.find((habbit) => habbit.id == hashId);
   if (urlHabbit) {
     rerender(urlHabbit.id);
   } else {
